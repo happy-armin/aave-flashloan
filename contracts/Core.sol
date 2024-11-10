@@ -55,8 +55,8 @@ contract Core {
 			address(token2),
 			amount1,
 			amount2,
-			amount1 / 2, // Minimum amount of token1 to add
-			amount2 / 2, // Minimum amount of token2 to add
+			0, // Minimum amount of token1 to add
+			0, // Minimum amount of token2 to add
 			msg.sender, // Recipient of the liquidity tokens
 			block.timestamp // Current timestamp as deadline
 		);
@@ -118,19 +118,20 @@ contract Core {
 			revert PairDoesNotExist();
 		}
 
+		IERC20 pairToken = IERC20(pair);
 		// Transfer liquidity tokens from the user to this contract
-		token1.safeTransferFrom(msg.sender, address(this), liquidity);
+		pairToken.safeTransferFrom(msg.sender, address(this), liquidity);
 
 		// Approve the router to spend the liquidity tokens
-		token1.approve(address(router), liquidity);
+		pairToken.approve(address(router), liquidity);
 
 		// Remove liquidity from the pair
 		(amountOut1, amountOut2) = router.removeLiquidity(
 			address(token1),
 			address(token2),
 			liquidity,
-			1, // Minimum amount of token1 to receive
-			1, // Minimum amount of token2 to receive
+			0, // Minimum amount of token1 to receive
+			0, // Minimum amount of token2 to receive
 			msg.sender, // Recipient of the tokens
 			block.timestamp // Current timestamp as deadline
 		);
@@ -157,17 +158,19 @@ contract Core {
 			revert PairDoesNotExist();
 		}
 
+		IERC20 pairToken = IERC20(pair);
 		// Transfer the liquidity from the caller to this contract
-		token.safeTransferFrom(msg.sender, address(this), liquidity);
+		pairToken.safeTransferFrom(msg.sender, address(this), liquidity);
+
 		// Approve the router to spend the liquidity
-		token.approve(address(router), liquidity);
+		pairToken.approve(address(router), liquidity);
 
 		// Remove the liquidity from the pair
 		(amountOut1, amountOut2) = router.removeLiquidityETH(
 			address(token),
 			liquidity,
-			1,
-			1,
+			0,
+			0,
 			msg.sender,
 			block.timestamp
 		);
@@ -188,7 +191,7 @@ contract Core {
 		IERC20 token2,
 		uint256 amountIn,
 		uint256 amountOutMin
-	) external returns (uint256 amountOut) {
+	) external returns (uint256[] memory amountOut) {
 		// Transfer the specified amount of token1 from the user to this contract
 		token1.safeTransferFrom(msg.sender, address(this), amountIn);
 
@@ -210,7 +213,7 @@ contract Core {
 		);
 
 		// Return the actual amount of token2 received
-		return amounts[1];
+		return amounts;
 	}
 
 	/**
@@ -225,7 +228,7 @@ contract Core {
 		IERC20 token,
 		uint256 amountIn,
 		uint256 amountOutMin
-	) external returns (uint256 amountOut) {
+	) external returns (uint256[] memory amountOut) {
 		// Transfer the specified amount of token from the user to this contract
 		token.safeTransferFrom(msg.sender, address(this), amountIn);
 
@@ -247,6 +250,6 @@ contract Core {
 		);
 
 		// Return the actual amount of ETH received
-		return amounts[1];
+		return amounts;
 	}
 }
