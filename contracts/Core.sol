@@ -4,9 +4,8 @@ pragma solidity ^0.8.0;
 // Import necessary contracts and interfaces
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./interfaces/IUniswapV2Router02.sol";
-import "./interfaces/IUniswapV2Factory.sol";
-import "./TestToken.sol";
+import { IUniswapV2Router02 } from "./interfaces/IUniswapV2Router02.sol";
+import { IUniswapV2Factory } from "./interfaces/IUniswapV2Factory.sol";
 
 contract Core {
 	// Use SafeERC20 for secure token transfers
@@ -25,6 +24,8 @@ contract Core {
 		router = _router;
 		factory = _factory;
 	}
+
+	error PairDoesNotExist();
 
 	/**
 	 * @notice Adds liquidity to a Uniswap V2 pair.
@@ -49,17 +50,16 @@ contract Core {
 		token2.approve(address(router), amount2);
 
 		// Add liquidity to the Uniswap pair
-		(uint256 amountA, uint256 amountB, uint256 liquidityReceived) = router
-			.addLiquidity(
-				address(token1),
-				address(token2),
-				amount1,
-				amount2,
-				amount1 / 2, // Minimum amount of token1 to add
-				amount2 / 2, // Minimum amount of token2 to add
-				msg.sender, // Recipient of the liquidity tokens
-				block.timestamp // Current timestamp as deadline
-			);
+		(, , uint256 liquidityReceived) = router.addLiquidity(
+			address(token1),
+			address(token2),
+			amount1,
+			amount2,
+			amount1 / 2, // Minimum amount of token1 to add
+			amount2 / 2, // Minimum amount of token2 to add
+			msg.sender, // Recipient of the liquidity tokens
+			block.timestamp // Current timestamp as deadline
+		);
 
 		// Return the amount of liquidity tokens received
 		return liquidityReceived;
@@ -83,8 +83,9 @@ contract Core {
 		token.approve(address(router), amountIn);
 
 		// Add liquidity to the ETH-token pair
-		(uint256 amountA, uint256 amountB, uint256 liquidityReceived) = router
-			.addLiquidityETH{ value: msg.value }(
+		(, , uint256 liquidityReceived) = router.addLiquidityETH{
+			value: msg.value
+		}(
 			address(token),
 			amountIn,
 			0, // Slippage is set to 0
@@ -112,7 +113,10 @@ contract Core {
 	) external returns (uint256 amountOut1, uint256 amountOut2) {
 		// Get the address of the liquidity pair for the two tokens
 		address pair = factory.getPair(address(token1), address(token2));
-		require(pair != address(0), "Pair does not exist");
+		// Revert if the pair does not exist
+		if (pair == address(0)) {
+			revert PairDoesNotExist();
+		}
 
 		// Transfer liquidity tokens from the user to this contract
 		token1.safeTransferFrom(msg.sender, address(this), liquidity);
@@ -149,7 +153,9 @@ contract Core {
 		// Get the address of the token-ETH pair
 		address pair = factory.getPair(address(token), router.WETH());
 		// Revert if the pair does not exist
-		require(pair != address(0), "Pair does not exist");
+		if (pair == address(0)) {
+			revert PairDoesNotExist();
+		}
 
 		// Transfer the liquidity from the caller to this contract
 		token.safeTransferFrom(msg.sender, address(this), liquidity);
@@ -195,7 +201,7 @@ contract Core {
 		path[1] = address(token2); // To token2
 
 		// Execute the swap
-		uint[] memory amounts = router.swapExactTokensForTokens(
+		uint256[] memory amounts = router.swapExactTokensForTokens(
 			amountIn, // Amount of token1 to swap
 			amountOutMin, // Minimum amount of token2 to receive
 			path, // The path of the swap
@@ -232,7 +238,7 @@ contract Core {
 		path[1] = wethAddress;
 
 		// Execute the swap
-		uint[] memory amounts = router.swapExactTokensForETH(
+		uint256[] memory amounts = router.swapExactTokensForETH(
 			amountIn, // Amount of token to swap
 			amountOutMin, // Minimum amount of ETH to receive
 			path, // The path of the swap
